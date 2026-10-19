@@ -13,6 +13,8 @@
                     <p>Kode: {{ $product->code }}</p>
                     <p>Harga: {{ $product->price }}</p>
                     <p>Stok: {{ $product->stock }}</p>
+
+                    <x-badge :stock="$product->stock"/>
                 </div>
             @endforeach
         </div>

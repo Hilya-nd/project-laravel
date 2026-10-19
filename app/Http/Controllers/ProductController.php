@@ -3,6 +3,8 @@
 namespace App\Http\Controllers;
 
 use App\Models\Product;
+use App\Models\Category;
+use App\Http\Requests\StoreProductRequest;
 use Illuminate\Http\Request;
 
 class ProductController extends Controller
@@ -12,8 +14,8 @@ class ProductController extends Controller
      */
     public function index()
     {
-        $products = Product::all();
-        return view('products.index', compact('products'));
+        $products = Product::with('category')->latest()->paginate(10);
+        return view('master-data.product.index', compact('products'));
     }
 
     /**
@@ -22,6 +24,7 @@ class ProductController extends Controller
     public function create()
     {
         $categories = Category::orderBy('name')->get();
+
         return view('master-data.product.create', compact('categories'));
     }
 
@@ -31,7 +34,10 @@ class ProductController extends Controller
     public function store(StoreProductRequest $request)
     {
         Product::create($request->validated());
-        return redirect()->route('products.index')->with('success', 'Produk berhasil ditambahkan.');
+
+        return redirect()
+            ->route('products.index')
+            ->with('success', 'Produk berhasil ditambahkan.');
     }
 
     /**
@@ -39,7 +45,9 @@ class ProductController extends Controller
      */
     public function show(string $id)
     {
-        //
+        $product = Product::findOrFail($id);
+
+        return view('master-data.product.show', compact('product'));
     }
 
     /**
@@ -47,7 +55,13 @@ class ProductController extends Controller
      */
     public function edit(string $id)
     {
-        //
+        $product = Product::findOrFail($id);
+        $categories = Category::orderBy('name')->get();
+
+        return view(
+            'master-data.product.edit',
+            compact('product', 'categories')
+        );
     }
 
     /**
@@ -55,7 +69,22 @@ class ProductController extends Controller
      */
     public function update(Request $request, string $id)
     {
-        //
+        $product = Product::findOrFail($id);
+
+        $validated = $request->validate([
+            'category_id' => 'required|exists:categories,id',
+            'code' => 'required|string|max:20|unique:products,code,' . $product->id,
+            'name' => 'required|string|max:150',
+            'unit' => 'required|string|max:20',
+            'price' => 'required|integer|min:0',
+            'stock' => 'required|integer|min:0',
+        ]);
+
+        $product->update($validated);
+
+        return redirect()
+            ->route('products.index')
+            ->with('success', 'Produk berhasil diperbarui.');
     }
 
     /**
@@ -63,6 +92,11 @@ class ProductController extends Controller
      */
     public function destroy(string $id)
     {
-        //
+        $product = Product::findOrFail($id);
+        $product->delete();
+
+        return redirect()
+            ->route('products.index')
+            ->with('success', 'Produk berhasil dihapus.');
     }
 }
