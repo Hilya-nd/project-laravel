@@ -12,10 +12,30 @@ class ProductController extends Controller
     /**
      * Display a listing of the resource.
      */
-    public function index()
+
+    public function index(Request $request)
     {
-        $products = Product::with('category')->latest()->paginate(10);
-        return view('master-data.product.index', compact('products'));
+
+        $query = Product::with('category');
+
+        if ($request->filled('search')) {
+            $keyword = $request->search;
+            $query->where(function ($q) use ($keyword) {
+                $q->where('name', 'like', "%{$keyword}%")
+                    ->orWhere('code', 'like', "%{$keyword}%");
+            });
+        }
+
+        if ($request->filled('category_id')) {
+            $query->where('category_id', $request->category_id);
+        }
+
+        $products = $query->latest()->paginate(10)->withQueryString();
+
+        $categories = Category::orderBy('name')->get();
+
+        return view('master-data.product.index', compact('products', 'categories'));
+
     }
 
     /**
@@ -53,50 +73,31 @@ class ProductController extends Controller
     /**
      * Show the form for editing the specified resource.
      */
-    public function edit(string $id)
+    public function edit(Product $product)
     {
-        $product = Product::findOrFail($id);
         $categories = Category::orderBy('name')->get();
-
-        return view(
-            'master-data.product.edit',
-            compact('product', 'categories')
-        );
+        return view('master-data.product.edit', compact('product', 'categories'));
     }
 
     /**
      * Update the specified resource in storage.
      */
-    public function update(Request $request, string $id)
+
+    public function update(UpdateProductRequest $request, Product $product)
     {
-        $product = Product::findOrFail($id);
+        $product->update($request->validated());
 
-        $validated = $request->validate([
-            'category_id' => 'required|exists:categories,id',
-            'code' => 'required|string|max:20|unique:products,code,' . $product->id,
-            'name' => 'required|string|max:150',
-            'unit' => 'required|string|max:20',
-            'price' => 'required|integer|min:0',
-            'stock' => 'required|integer|min:0',
-        ]);
-
-        $product->update($validated);
-
-        return redirect()
-            ->route('products.index')
-            ->with('success', 'Produk berhasil diperbarui.');
+        return redirect()->route('products.index')->with('success', 'Produk berhasil diperbarui.');
     }
 
     /**
      * Remove the specified resource from storage.
      */
-    public function destroy(string $id)
+
+    public function destroy(Product $product)
     {
-        $product = Product::findOrFail($id);
         $product->delete();
 
-        return redirect()
-            ->route('products.index')
-            ->with('success', 'Produk berhasil dihapus.');
+        return redirect()->route('products.index')->with('success', 'Produk berhasil dihapus.');
     }
 }
